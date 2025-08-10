@@ -37,8 +37,8 @@ class ContinuousThoughtMachine(nn.Module):
     Args:
         iterations (int): Number of internal 'thought' ticks (T, in paper).
         d_model (int): Core dimensionality of the CTM's latent space (D, in paper).
-                       NOTE: Note that this is NOT the representation used for action or prediction, but rather that which
-                       is fully internal to the model and not directly connected to data.
+                        NOTE: Note that this is NOT the representation used for action or prediction, but rather that which
+                        is fully internal to the model and not directly connected to data.
         d_input (int): Dimensionality of projected attention outputs or direct input features.
         heads (int): Number of attention heads.
         n_synch_out (int): Number of neurons used for output synchronisation (D_out, in paper).
@@ -62,15 +62,15 @@ class ContinuousThoughtMachine(nn.Module):
                         NOTE: some of this is legacy from our experimentation, but all three strategies are valid and useful. 
                             We dilineate exactly which strategies we use per experiment in the paper. 
                         - first-last: build a 'dense' sync matrix for output from the first D_out neurons and action from the 
-                                      last D_action neurons. Flatten this matrix into the synchronisation representation. 
-                                      This approach shares relationships for neurons and bottlenecks the gradients through them.
-                                      NOTE: the synchronisation size will be (D_out/action * (D_out/action + 1))/2
+                                        last D_action neurons. Flatten this matrix into the synchronisation representation. 
+                                        This approach shares relationships for neurons and bottlenecks the gradients through them.
+                                        NOTE: the synchronisation size will be (D_out/action * (D_out/action + 1))/2
                         - random: randomly select D_out neurons for the 'i' side pairings, and also D_out for the 'j' side pairings,
                                       also pairing those accross densely, resulting in a bottleneck roughly 2x as wide.
                                       NOTE: the synchronisation size will be (D_out/action * (D_out/action + 1))/2
                         - random-pairing (DEFAULT!): randomly select D_out neurons and pair these with another D_out neurons. 
-                                      This results in much less bottlenecking and is the most up-to-date variant.
-                                      NOTE: the synchronisation size will be D_out in this case; better control. 
+                                        This results in much less bottlenecking and is the most up-to-date variant.
+                                        NOTE: the synchronisation size will be D_out in this case; better control. 
         n_random_pairing_self (int): Number of neurons to select for self-to-self synch when random-pairing is used.
                         NOTE: when using random-pairing, i-to-i (self) synchronisation is rare, meaning that 'recovering a
                         snapshot representation' (see paper) is difficult. This alleviates that. 
@@ -78,26 +78,26 @@ class ContinuousThoughtMachine(nn.Module):
     """                               
 
     def __init__(self,
-                 iterations,
-                 d_model,
-                 d_input,
-                 heads,
-                 n_synch_out,
-                 n_synch_action,
-                 synapse_depth,
-                 memory_length,
-                 deep_nlms,
-                 memory_hidden_dims,
-                 do_layernorm_nlm,
-                 backbone_type,
-                 positional_embedding_type,
-                 out_dims,
-                 prediction_reshaper=[-1],
-                 dropout=0,
-                 dropout_nlm=None,
-                 neuron_select_type='random-pairing',  
-                 n_random_pairing_self=0,
-                 ):
+                    iterations,
+                    d_model,
+                    d_input,
+                    heads,
+                    n_synch_out,
+                    n_synch_action,
+                    synapse_depth,
+                    memory_length,
+                    deep_nlms,
+                    memory_hidden_dims,
+                    do_layernorm_nlm,
+                    backbone_type,
+                    positional_embedding_type,
+                    out_dims,
+                    prediction_reshaper=[-1],
+                    dropout=0,
+                    dropout_nlm=None,
+                    neuron_select_type='random-pairing',  
+                    n_random_pairing_self=0,
+                    ):
         super(ContinuousThoughtMachine, self).__init__()
 
         # --- Core Parameters ---
@@ -488,7 +488,7 @@ class ContinuousThoughtMachine(nn.Module):
         attention_tracking = []
 
         # --- Featurise Input Data ---
-        kv = self.compute_features(x)
+        kv = self.compute_features(x)  # 10
 
         # --- Initialise Recurrent State ---
         state_trace = self.start_trace.unsqueeze(0).expand(B, -1, -1) # Shape: (B, H, T)
@@ -512,30 +512,32 @@ class ContinuousThoughtMachine(nn.Module):
         for stepi in range(self.iterations):
 
             # --- Calculate Synchronisation for Input Data Interaction ---
+            # 通过隐藏态activated_state计算两次sync, 第一次"action"为了与input data交互, 第二次"out"为了输出预测
             synchronisation_action, decay_alpha_action, decay_beta_action = self.compute_synchronisation(activated_state, decay_alpha_action, decay_beta_action, r_action, synch_type='action')
 
             # --- Interact with Data via Attention ---
+            # q from hidden state, kv from input data
             q = self.q_proj(synchronisation_action).unsqueeze(1)
             attn_out, attn_weights = self.attention(q, kv, kv, average_attn_weights=False, need_weights=True)
             attn_out = attn_out.squeeze(1)
-            pre_synapse_input = torch.concatenate((attn_out, activated_state), dim=-1)
+            pre_synapse_input = torch.concatenate((attn_out, activated_state), dim=-1)  # N1 concate o_t, z_t
 
             # --- Apply Synapses ---
-            state = self.synapses(pre_synapse_input)
+            state = self.synapses(pre_synapse_input)  # theta_syn
             # The 'state_trace' is the history of incoming pre-activations
-            state_trace = torch.cat((state_trace[:, :, 1:], state.unsqueeze(-1)), dim=-1)
+            state_trace = torch.cat((state_trace[:, :, 1:], state.unsqueeze(-1)), dim=-1)  # N1 pre-activations a^t
 
             # --- Apply Neuron-Level Models ---
-            activated_state = self.trace_processor(state_trace)
+            activated_state = self.trace_processor(state_trace)  # N2
             # One would also keep an 'activated_state_trace' as the history of outgoing post-activations
             # BUT, this is unnecessary because the synchronisation calculation is fully linear and can be
             # done using only the currect activated state (see compute_synchronisation method for explanation)
 
             # --- Calculate Synchronisation for Output Predictions ---
-            synchronisation_out, decay_alpha_out, decay_beta_out = self.compute_synchronisation(activated_state, decay_alpha_out, decay_beta_out, r_out, synch_type='out')
+            synchronisation_out, decay_alpha_out, decay_beta_out = self.compute_synchronisation(activated_state, decay_alpha_out, decay_beta_out, r_out, synch_type='out')  #N6 N7
 
             # --- Get Predictions and Certainties ---
-            current_prediction = self.output_projector(synchronisation_out)
+            current_prediction = self.output_projector(synchronisation_out)  # N8
             current_certainty = self.compute_certainty(current_prediction)
 
             predictions[..., stepi] = current_prediction

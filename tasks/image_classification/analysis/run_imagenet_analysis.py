@@ -17,7 +17,12 @@ import seaborn as sns
 import imageio
 import cv2
 from scipy.special import softmax
+import sys
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+sys.path.insert(0, project_root)
+
 from tasks.image_classification.plotting import save_frames_to_mp4
+
 
 # --- Data Handling & Model ---
 from torchvision import transforms
@@ -26,6 +31,7 @@ from scipy import ndimage # Used in find_island_centers
 from data.custom_datasets import ImageNet 
 from models.ctm import ContinuousThoughtMachine 
 from tasks.image_classification.imagenet_classes import IMAGENET2012_CLASSES 
+
 from tasks.image_classification.plotting import plot_neural_dynamics
 
 # --- Global Settings ---
@@ -66,7 +72,7 @@ def parse_args():
     parser.add_argument('--actions', type=str, nargs='+', default=['videos'], choices=['plots', 'videos', 'demo'], help="Actions to take. Plots=results plots; videos=gifs/mp4s to watch attention; demo: last frame of internal ticks")
     parser.add_argument('--device', type=int, nargs='+', default=[-1], help="GPU device index or -1 for CPU")
     
-    parser.add_argument('--checkpoint', type=str, default='checkpoints/imagenet/ctm_clean.pt', help="Path to ATM checkpoint")
+    parser.add_argument('--checkpoint', type=str, default='checkpoints/imagenet/ctm_imagenet_D=4096_T=50_M=25.pt', help="Path to ATM checkpoint")
     parser.add_argument('--output_dir', type=str, default='tasks/image_classification/analysis/outputs/imagenet_viz', help="Directory for visualization outputs")
     parser.add_argument('--debug', action=argparse.BooleanOptionalAction, default=True, help='Debug mode: use CIFAR100 instead of ImageNet for debugging.')
     parser.add_argument('--plot_every', type=int, default=10, help="How often to plot.")
