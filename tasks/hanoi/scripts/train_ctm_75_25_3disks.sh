@@ -7,7 +7,7 @@ LOG_DIR="logs/hanoi/run${RUN}/ctm_${ITERATIONS}_${MEMORY_LENGTH}_${HANOI_DISKS}d
 SEED=$((RUN - 1))
 
 
-conda run --name ctm python -m tasks.hanoi.train \
+python -m tasks.hanoi.train \
     --log_dir $LOG_DIR \
     --seed $SEED \
     --model_type ctm \
@@ -31,14 +31,14 @@ conda run --name ctm python -m tasks.hanoi.train \
     --batch_size 64 \
     --learning_rate 1e-4 \
     --weight_decay 0.0 \
-    --num_epochs 100 \
+    --num_epochs 2 \
     --grad_clip_quantile -1 \
-    --warmup_epochs 10 \
+    --warmup_epochs 1 \
     --scheduler_type cosine \
-    --num_workers 4 \
+    --num_workers 0 \
     --pin_memory \
-    --save_every 10 \
+    --save_every 1 \
     --eval_every 1 \
-    --log_every 100 \
-    --save_gif_every 20 \
+    --log_every 1 \
+    --save_gif_every 2 \
     --device auto

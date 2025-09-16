@@ -331,7 +331,7 @@ class TowerOfHanoiDataset(Dataset):
         self.max_moves = (2 ** N) - 1  # Optimal number of moves for N disks
         
     def __len__(self):
-        return 10000000  # Large dataset size
+        return 10000  # Reduced dataset size for faster training
         
     def __getitem__(self, idx):
         # Generate initial state: all disks on peg 0
@@ -396,7 +396,7 @@ class RiverCrossingDataset(Dataset):
         self.max_moves = 4 * N - 3  # Optimal number of moves for N pairs
         
     def __len__(self):
-        return 10000000  # Large dataset size
+        return 10000  # Reduced dataset size for faster training
         
     def __getitem__(self, idx):
         # State representation: [pair1_pos, pair2_pos, ..., pairN_pos, bridge_pos]
