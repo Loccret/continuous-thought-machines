@@ -322,3 +322,143 @@ class ParityDataset(Dataset):
         cumsum = torch.cumsum(negatives, dim=0)
         target = (cumsum % 2 != 0).to(torch.long)
         return vector, target
+
+
+class TowerOfHanoiDataset(Dataset):
+    """A Tower of Hanoi dataset that generates optimal solutions for N disks."""
+    def __init__(self, N):
+        self.N = N
+        self.max_moves = (2 ** N) - 1  # Optimal number of moves for N disks
+        
+    def __len__(self):
+        return 10000000  # Large dataset size
+        
+    def __getitem__(self, idx):
+        # Generate initial state: all disks on peg 0
+        # State representation: [disk1_peg, disk2_peg, ..., diskN_peg]
+        # where disk1 is smallest, diskN is largest
+        initial_state = torch.zeros(self.N, dtype=torch.long)
+        
+        # Generate target state: all disks on peg 2
+        target_state = torch.full((self.N,), 2, dtype=torch.long)
+        
+        # Generate optimal sequence of moves
+        moves = self._solve_hanoi(self.N, 0, 2, 1)
+        
+        # Convert moves to state sequence
+        states = self._moves_to_states(initial_state.clone(), moves)
+        
+        # Input: current state, Target: next state
+        if len(states) > 1:
+            input_state = states[0]
+            target_next_state = states[1]
+        else:
+            input_state = initial_state
+            target_next_state = target_state
+            
+        return input_state.float(), target_next_state
+    
+    def _solve_hanoi(self, n, source, destination, auxiliary):
+        """Generate optimal sequence of moves using recursive algorithm."""
+        if n == 1:
+            return [(source, destination)]
+        else:
+            moves = []
+            moves.extend(self._solve_hanoi(n-1, source, auxiliary, destination))
+            moves.append((source, destination))
+            moves.extend(self._solve_hanoi(n-1, auxiliary, destination, source))
+            return moves
+    
+    def _moves_to_states(self, initial_state, moves):
+        """Convert sequence of moves to sequence of states."""
+        states = [initial_state.clone()]
+        current_state = initial_state.clone()
+        
+        for source_peg, dest_peg in moves:
+            # Find the top disk on source peg
+            disk_to_move = self._find_top_disk(current_state, source_peg)
+            if disk_to_move is not None:
+                current_state[disk_to_move] = dest_peg
+                states.append(current_state.clone())
+                
+        return states
+    
+    def _find_top_disk(self, state, peg):
+        """Find the smallest disk on a given peg."""
+        disks_on_peg = [i for i in range(len(state)) if state[i] == peg]
+        return min(disks_on_peg) if disks_on_peg else None
+
+
+class RiverCrossingDataset(Dataset):
+    """A River Crossing dataset for N pairs of entities crossing a bridge."""
+    def __init__(self, N):
+        self.N = N  # Number of pairs
+        self.max_moves = 4 * N - 3  # Optimal number of moves for N pairs
+        
+    def __len__(self):
+        return 10000000  # Large dataset size
+        
+    def __getitem__(self, idx):
+        # State representation: [pair1_pos, pair2_pos, ..., pairN_pos, bridge_pos]
+        # 0 = left side, 1 = right side
+        # bridge_pos indicates which side the bridge/torch is on
+        
+        # Initial state: all pairs on left side (0), bridge on left (0)
+        initial_state = torch.zeros(self.N + 1, dtype=torch.long)
+        
+        # Target state: all pairs on right side (1), bridge on right (1)
+        target_state = torch.ones(self.N + 1, dtype=torch.long)
+        
+        # Generate optimal sequence of moves
+        moves = self._solve_river_crossing(self.N)
+        
+        # Convert moves to state sequence
+        states = self._moves_to_states(initial_state.clone(), moves)
+        
+        # Input: current state, Target: next state
+        if len(states) > 1:
+            input_state = states[0]
+            target_next_state = states[1]
+        else:
+            input_state = initial_state
+            target_next_state = target_state
+            
+        return input_state.float(), target_next_state
+    
+    def _solve_river_crossing(self, n):
+        """Generate optimal sequence of moves for river crossing puzzle."""
+        if n == 1:
+            return [(0,)]  # Single pair crosses
+        
+        moves = []
+        # First pair crosses
+        moves.append((0,))
+        
+        for i in range(1, n):
+            # One from first pair returns
+            moves.append((0,))
+            # Next pair crosses
+            moves.append((i,))
+            # Other from first pair returns and crosses with first person
+            moves.append((0,))
+            
+        return moves
+    
+    def _moves_to_states(self, initial_state, moves):
+        """Convert sequence of moves to sequence of states."""
+        states = [initial_state.clone()]
+        current_state = initial_state.clone()
+        
+        for move in moves:
+            # Move the specified pairs
+            bridge_side = current_state[-1].item()  # Current bridge position
+            
+            for pair_idx in move:
+                if pair_idx < len(current_state) - 1:
+                    current_state[pair_idx] = 1 - current_state[pair_idx]  # Toggle position
+            
+            # Bridge moves to opposite side
+            current_state[-1] = 1 - current_state[-1]
+            states.append(current_state.clone())
+                
+        return states
